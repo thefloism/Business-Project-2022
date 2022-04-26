@@ -1,0 +1,185 @@
+# initialize -------------------------------------------------------------------
+library(tidyverse) # loads relevant packages
+library(lubridate) # formatting dates
+library(readxl)
+library(ggplot2)
+
+# import files -----------------------------------------------------------------
+file_16 = "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/dtEMEA1617.xlsx"
+file_17 = "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/dtEMEA1718.xlsx"
+file_18 = "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/dtEMEA1819.xlsx"
+file_19 = "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/dtEMEA1920.xlsx"
+file_20 = "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/dtEMEA2021.xlsx"
+
+# files = c(file_16,file_17,file_18,file_19, file_20)
+
+# define dataframes ------------------------------------------------------------
+df_16 = read_xlsx(file_16)
+df_17 = read_xlsx(file_17)
+df_18 = read_xlsx(file_18)
+df_19 = read_xlsx(file_19)
+df_20 = read_xlsx(file_20)
+
+df_all = bind_rows(df_16,df_17,df_18,df_19,df_20)
+
+# group data -------------------------------------------------------------------
+df_all_tidy = df_all %>%
+        group_by(`Fiscal Year / Period`) %>%
+        select(-"Region") %>%
+        rename( country = 1,
+                  plant = 2,
+               material = 3,
+                 period = 4,
+                history = 5)
+
+df_all_tidy["demand"] = 1
+
+tab_periods = table(df_all_tidy["period"])
+df_periods = as.data.frame(tab_periods)
+
+# tab_country = table(df_all_a[1])
+# tab_delivery_plant = table(df_all_a[2])
+# tab_material= table(df_all_a[3])
+# tab_fy= table(df_all_a[4])
+# tab_sales= table(df_all_a[5])
+# tab_budget_line= table(df_all_a[6])
+# tab_prod_hierarchy= table(df_all_a[7])
+# tab_main_group= table(df_all_a[8])
+# tab_customer= table(df_all_a[9])
+
+# View(tab_country)
+
+
+# plot data (all periods) ------------------------------------------------------
+plot_all = ggplot(df_periods, aes(Var1,Freq)) +
+        geom_line(group=1,col="blue", alpha=0.3)+
+        geom_point(col="darkblue", alpha=0.7)+
+        stat_smooth(group=1,col="sandybrown", fill="darkgrey")+
+        theme_minimal()+ 
+        theme(panel.background = element_rect(fill = 'white', colour = 'black'))+
+        theme(axis.text.x = element_text(angle = 90))
+
+plot_all
+
+
+# plot data (per fy) -----------------------------------------------------------
+df_fy_1617 = df_periods[ 1:12,]
+df_fy_1718 = df_periods[13:24,]
+df_fy_1819 = df_periods[25:36,]
+df_fy_1920 = df_periods[37:48,]
+df_fy_2021 = df_periods[49:60,]
+
+months= c ("july"   ,"august"  ,"september",
+           "october","november","december",
+           "january","february","march",
+           "april"  ,"may"     ,"june")
+
+fy_plot = data.frame(months,
+                     df_fy_1617["Freq"],
+                     df_fy_1718["Freq"],
+                     df_fy_1819["Freq"],
+                     df_fy_1920["Freq"],
+                     df_fy_2021["Freq"])
+
+fy_plot["mean"] = rowMeans(fy_plot[2:6])
+
+
+plot_fy = ggplot(fy_plot, aes(months,Freq)) +
+        
+        geom_line(group=1,col="orangered1", alpha=0.3)+
+        geom_point(col="orangered1", alpha=0.7)+
+        
+        geom_line (aes(x=months,y=Freq.1, group=1), col="tomato4", alpha=0.1)+
+        geom_point(aes(x=months,y=Freq.1), col="tomato4", alpha=0.7)+
+        
+        geom_line (aes(x=months,y=Freq.2, group=1), col="hotpink4", alpha=0.1)+
+        geom_point(aes(x=months,y=Freq.2), col="hotpink4", alpha=0.7)+
+        
+        geom_line (aes(x=months,y=Freq.3, group=1), col="royalblue", alpha=0.1)+
+        geom_point(aes(x=months,y=Freq.3), col="royalblue", alpha=0.7)+
+        
+        geom_line (aes(x=months,y=Freq.4, group=1), col="springgreen4", alpha=0.1)+
+        geom_point(aes(x=months,y=Freq.4), col="springgreen4", alpha=0.7)+
+        
+        geom_line (aes(x=months,y=mean, group=1), col="black", alpha=1)+
+#        geom_point(aes(x=months,y=mean), col="black", alpha=1)+
+        
+        stat_smooth(group=1,col="sandybrown", fill="darkgrey")+
+        theme_minimal()+ 
+        theme(panel.background = element_rect(fill = 'white', colour = 'black'))+
+        theme(axis.text.x = element_text(angle = 90))
+
+
+plot_fy
+#write.csv2(df_all_a, "/Users/florianfranke/Desktop/Business Project/BP_unterlagen/test.csv")
+
+# plot main_group --------------------------------------------------------------
+
+df_sum_group = 
+  df_all_tidy %>%
+  group_by(main_group) %>%
+  summarise(demand = sum(demand))
+
+df_sum_group
+df_filter = df_sum_group
+
+df_filter_groups = 
+  df_all_tidy %>%
+  group_by(main_group,period) %>%
+  summarise(demand = sum(demand))
+
+tab_groups = table(df_filter_groups["main_group"])
+df_groups = as.data.frame(tab_groups)
+
+plot_main_group = ggplot(df_filter_groups, 
+                         aes(x = period, y = demand, group = main_group , col = main_group)) +
+  geom_line(size=0.2) +
+  theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(colour=NULL) +
+  theme(legend.position = "None")
+
+
+# plot main_group_filter -------------------------------------------------------
+df_sum_group_filter = 
+  df_all_tidy %>%
+  group_by(main_group) %>%
+  summarise(demand = sum(demand))
+  
+df_sum_group_filter
+df_filter = df_sum_group_filter[(df_sum_group$demand >= 20000),]
+
+df_filter
+
+# list_big_groups = as.list(df_filter["main_group"])
+list_filter = c("main_group_1","main_group_105","main_group_107" ,"main_group_112",
+             "main_group_25","main_group_3","main_group_35",  "main_group_38" ,
+             "main_group_4","main_group_43","main_group_5"  , "main_group_55" ,
+             "main_group_62","main_group_7","main_group_71"  ,"main_group_76" ,
+             "main_group_79","main_group_83","main_group_85"  ,"main_group_90" )
+list_filter
+
+df_filter_groups2 = 
+  df_all_tidy %>%
+  filter(main_group %in% list_filter) %>%
+  group_by(main_group,period) %>%
+  summarise(demand = sum(demand))
+
+tab_groups_filter = table(df_filter_groups2["main_group"])
+df_groups_filter = as.data.frame(tab_groups_filter)
+
+plot_main_group_filter = ggplot(df_filter_groups2, 
+                         aes(x = period, y = demand, group = main_group , col = main_group)) +
+                         geom_line() +
+                       #  geom_point() +
+                         theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
+                         theme(axis.text.x = element_text(angle = 90)) +
+                         labs(colour=NULL) +
+                         theme(legend.position = "None")
+                  
+plot_all
+plot_fy
+plot_main_group
+plot_main_group_filter
+
+
